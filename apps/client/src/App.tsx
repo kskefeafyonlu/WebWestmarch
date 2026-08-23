@@ -24,10 +24,9 @@ export const App: React.FC = () => {
   const [worldGen] = useState(() => new WorldChunkGenerator(GAME_CONFIG.worldSeed));
   const [netClient] = useState(() => GameNetworkClient.getInstance());
 
-  const [playerName, setPlayerName] = useState<string | null>(() => {
-    return sessionStorage.getItem("webwestmarch_player_name");
-  });
-  const [isNamePromptOpen, setIsNamePromptOpen] = useState(!playerName);
+  // Always show Name Prompt modal when entering the page
+  const [isNamePromptOpen, setIsNamePromptOpen] = useState(true);
+  const [playerName, setPlayerName] = useState<string>("");
 
   const [status, setStatus] = useState<ConnectionStatus>("DISCONNECTED");
   const [players, setPlayers] = useState<Map<string, RemotePlayer>>(new Map());
@@ -36,7 +35,7 @@ export const App: React.FC = () => {
   const [selectedTile, setSelectedTile] = useState<TileData | null>(() => worldGen.getTile({ q: 0, r: 0 }));
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
 
-  // Initialize Renderer and Input Controller
+  // Initialize PixiJS Renderer and Input Controller (without auto-connecting until name is chosen)
   useEffect(() => {
     let isMounted = true;
 
@@ -81,12 +80,6 @@ export const App: React.FC = () => {
         const coord = { q: parseInt(delta.coordKey.split(",")[0], 10), r: parseInt(delta.coordKey.split(",")[1], 10) };
         renderer.refreshSurroundingTerrain(coord, 2);
       };
-
-      // If name was already set in session, connect immediately
-      const savedName = sessionStorage.getItem("webwestmarch_player_name");
-      if (savedName) {
-        await netClient.connect(savedName);
-      }
     };
 
     initEngine();
@@ -100,8 +93,8 @@ export const App: React.FC = () => {
     };
   }, [worldGen, netClient]);
 
+  // Connects once the player inputs their name
   const handleNameSubmit = async (chosenName: string) => {
-    sessionStorage.setItem("webwestmarch_player_name", chosenName);
     setPlayerName(chosenName);
     setIsNamePromptOpen(false);
     await netClient.connect(chosenName);
