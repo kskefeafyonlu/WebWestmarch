@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Edit2,
+  Check,
 } from "lucide-react";
 
 const HERO_ROLES = [
@@ -31,8 +32,7 @@ const HERO_ROLES = [
     id: "WARRIOR",
     name: "Vanguard Knight",
     icon: <Shield className="w-5 h-5 text-amber-400" />,
-    color: "from-amber-600/30 to-amber-900/30 border-amber-500/40 text-amber-300",
-    desc: "Heavy armor specialist with defensive taunts and cleaving strikes.",
+    desc: "Heavy armor tank with cleaving strikes.",
     baseHp: 140,
     baseMp: 30,
   },
@@ -40,8 +40,7 @@ const HERO_ROLES = [
     id: "MAGE",
     name: "Arcane Pyromancer",
     icon: <Sparkles className="w-5 h-5 text-purple-400" />,
-    color: "from-purple-600/30 to-purple-900/30 border-purple-500/40 text-purple-300",
-    desc: "Wields destructive elemental magic to annihilate enemy formations.",
+    desc: "Destructive elemental spellcaster.",
     baseHp: 75,
     baseMp: 120,
   },
@@ -49,8 +48,7 @@ const HERO_ROLES = [
     id: "RANGER",
     name: "Shadow Scout",
     icon: <Crosshair className="w-5 h-5 text-emerald-400" />,
-    color: "from-emerald-600/30 to-emerald-900/30 border-emerald-500/40 text-emerald-300",
-    desc: "Master of long-range precision and traps in the deep wilderness.",
+    desc: "Wilderness archer and scout.",
     baseHp: 95,
     baseMp: 60,
   },
@@ -58,8 +56,7 @@ const HERO_ROLES = [
     id: "CLERIC",
     name: "Dawn Templar",
     icon: <Heart className="w-5 h-5 text-rose-400" />,
-    color: "from-rose-600/30 to-rose-900/30 border-rose-500/40 text-rose-300",
-    desc: "Channels radiant blessings to mend party wounds and purge curses.",
+    desc: "Radiant healer and protector.",
     baseHp: 105,
     baseMp: 100,
   },
@@ -133,84 +130,88 @@ export const App: React.FC = () => {
   const localPlayer = netClient.getLocalPlayer();
 
   return (
-    <div className="w-screen h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden font-sans select-none">
+    <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column", backgroundColor: "#070a12", color: "#f8fafc" }}>
       {/* Top Header Bar */}
-      <header className="h-16 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-6 flex items-center justify-between z-10 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 shadow-md shadow-amber-500/20">
-            <Compass className="w-6 h-6" />
+      <header className="lobby-header">
+        <div className="brand-wrapper">
+          <div className="brand-icon">
+            <Compass style={{ width: 24, height: 24 }} />
           </div>
           <div>
-            <h1 className="font-cinzel text-lg font-bold gold-glow-text leading-tight">
+            <h1 className="font-cinzel gold-glow-text" style={{ fontSize: 18, fontWeight: "bold", margin: 0 }}>
               WebWestmarch
             </h1>
-            <p className="text-[11px] text-slate-400 tracking-wider">
+            <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0 }}>
               Multiplayer Gathering Hall & Lobby
             </p>
           </div>
         </div>
 
-        {/* Server & Status Indicator */}
-        <div className="flex items-center gap-3">
+        {/* Server URL & Status Indicator */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {isEditingServerUrl ? (
-            <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-lg border border-slate-700 text-xs">
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(15,23,42,0.9)", padding: "4px 8px", borderRadius: 8, border: "1px solid var(--border-gold)" }}>
               <input
                 type="text"
                 value={serverUrlInput}
                 onChange={(e) => setServerUrlInput(e.target.value)}
-                placeholder="ws://localhost:2567"
-                className="bg-transparent text-slate-200 px-2 py-0.5 outline-none font-mono text-xs w-56"
+                placeholder="wss://webwestmarch.fly.dev"
+                className="fantasy-input"
+                style={{ width: 230, padding: "4px 8px", fontSize: 11 }}
               />
-              <button
-                onClick={handleSaveServerUrl}
-                className="fantasy-btn py-0.5 px-2 text-[11px] bg-amber-500/20 text-amber-300"
-              >
-                Connect
+              <button onClick={handleSaveServerUrl} className="fantasy-btn fantasy-btn-primary" style={{ padding: "4px 10px", fontSize: 11 }}>
+                <Check style={{ width: 14, height: 14 }} /> Connect
               </button>
             </div>
           ) : (
             <button
               onClick={() => setIsEditingServerUrl(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-[11px] font-mono text-slate-400 transition-colors"
-              title="Click to edit game server WebSocket URL"
+              className="card-item"
+              style={{ padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 11, fontFamily: "var(--font-mono)" }}
+              title="Click to edit server WebSocket URL"
             >
-              <span>{netClient.serverUrl}</span>
-              <Edit2 className="w-3 h-3 text-slate-500" />
+              <span style={{ color: "var(--text-muted)" }}>Server:</span>
+              <strong style={{ color: "var(--accent-gold)" }}>{netClient.serverUrl}</strong>
+              <Edit2 style={{ width: 12, height: 12, opacity: 0.7 }} />
             </button>
           )}
 
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-mono">
+          <div className="status-pill">
             {status === "CONNECTED" ? (
-              <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                <span className="pulse-indicator" /> Lobby Live
+              <span style={{ color: "var(--accent-emerald)", display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="pulse-indicator" /> Realm Live
               </span>
             ) : status === "CONNECTING" ? (
-              <span className="text-amber-400 animate-pulse flex items-center gap-1.5 font-semibold">
-                <Clock className="w-3.5 h-3.5" /> Connecting...
+              <span style={{ color: "var(--accent-gold)", display: "flex", alignItems: "center", gap: 6 }}>
+                <Clock style={{ width: 14, height: 14 }} /> Connecting...
               </span>
             ) : (
-              <span className="flex items-center gap-1.5 text-amber-400">
-                <AlertTriangle className="w-3.5 h-3.5" /> Offline Mode
+              <span style={{ color: "var(--accent-gold)", display: "flex", alignItems: "center", gap: 6 }}>
+                <AlertTriangle style={{ width: 14, height: 14 }} /> Offline Preview
               </span>
             )}
           </div>
         </div>
       </header>
 
-      {/* Connection Notice Banner if Server Unreachable */}
+      {/* Notice Banner when offline */}
       {status === "ERROR" && (
-        <div className="bg-amber-950/60 border-b border-amber-800/60 px-6 py-2 flex items-center justify-between text-xs text-amber-200">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+        <div className="notice-banner">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <AlertTriangle style={{ width: 16, height: 16, color: "var(--accent-gold)" }} />
             <span>
-              <strong>Notice</strong>: Game server at <code>{netClient.serverUrl}</code> is offline. Running in local preview mode. (Deploy to Fly.io to connect players across the internet).
+              Could not reach WebSocket at <code>{netClient.serverUrl}</code>. (Make sure URL is <code>wss://webwestmarch.fly.dev</code> without <code>-server</code>).
             </span>
           </div>
           <button
-            onClick={() => netClient.connect(inputName || "Adventurer")}
-            className="flex items-center gap-1 font-mono text-[11px] text-amber-400 hover:text-amber-200 underline"
+            onClick={() => {
+              netClient.setServerUrl("wss://webwestmarch.fly.dev");
+              setServerUrlInput("wss://webwestmarch.fly.dev");
+              netClient.connect(inputName || "Adventurer");
+            }}
+            style={{ background: "none", border: "none", color: "var(--accent-gold)", cursor: "pointer", textDecoration: "underline", fontWeight: "bold", fontSize: 11 }}
           >
-            <RefreshCw className="w-3 h-3" /> Retry Connection
+            Switch to wss://webwestmarch.fly.dev
           </button>
         </div>
       )}
@@ -218,25 +219,24 @@ export const App: React.FC = () => {
       {/* Main Content Body */}
       {!hasJoinedLobby ? (
         /* Welcome / Name Entry View */
-        <main className="flex-1 flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-lg p-8 border-amber-500/30 flex flex-col gap-6 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="text-center flex flex-col items-center gap-2">
-              <div className="p-3 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 mb-1">
-                <Flame className="w-8 h-8" />
+        <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div className="glass-panel" style={{ width: "100%", maxWidth: 480, padding: 32, display: "flex", flexDirection: "column", gap: 24 }}>
+            <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <div style={{ padding: 12, borderRadius: "50%", background: "rgba(245, 158, 11, 0.2)", border: "1px solid var(--border-gold)", color: "var(--accent-gold)", display: "flex" }}>
+                <Flame style={{ width: 32, height: 32 }} />
               </div>
-              <h2 className="font-cinzel text-2xl font-bold text-amber-200">
+              <h2 className="font-cinzel gold-glow-text" style={{ fontSize: 24, margin: 0 }}>
                 Enter Haven's Sanctuary
               </h2>
-              <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
-                Join the gathering hall to form adventuring parties, prepare tactical builds, and coordinate expeditions.
+              <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
+                Choose your Adventurer Name and Starting Class Role to join the live gathering hall.
               </p>
             </div>
 
-            <form onSubmit={handleJoinLobby} className="flex flex-col gap-5">
-              {/* Adventurer Name */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-amber-400" /> Adventurer / Party Name
+            <form onSubmit={handleJoinLobby} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-main)", display: "flex", alignItems: "center", gap: 6 }}>
+                  <Shield style={{ width: 14, height: 14, color: "var(--accent-gold)" }} /> Adventurer Name
                 </label>
                 <input
                   type="text"
@@ -245,33 +245,39 @@ export const App: React.FC = () => {
                   value={inputName}
                   onChange={(e) => setInputName(e.target.value)}
                   placeholder="e.g. Valeria Ironheart"
-                  className="bg-slate-900/90 border border-slate-700 focus:border-amber-400 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition-colors font-medium"
+                  className="fantasy-input"
+                  style={{ padding: 12, fontSize: 14 }}
                 />
               </div>
 
               {/* Class Role Picker */}
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-slate-300">
-                  Select Starting Role
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-main)" }}>
+                  Select Starting Class
                 </label>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   {HERO_ROLES.map((role) => (
                     <button
                       key={role.id}
                       type="button"
                       onClick={() => setSelectedRole(role.id)}
-                      className={`p-3 rounded-xl border flex items-center gap-3 transition-all text-left ${
-                        selectedRole === role.id
-                          ? `bg-gradient-to-br ${role.color} ring-1 ring-amber-400/50 scale-[1.02]`
-                          : "bg-slate-900/40 border-slate-800/80 text-slate-400 hover:border-slate-700 hover:bg-slate-900/70"
-                      }`}
+                      className="card-item"
+                      style={{
+                        padding: 12,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        cursor: "pointer",
+                        borderColor: selectedRole === role.id ? "var(--accent-gold)" : "var(--border-subtle)",
+                        background: selectedRole === role.id ? "rgba(245, 158, 11, 0.15)" : "var(--bg-card)",
+                      }}
                     >
-                      <div className="flex-shrink-0">{role.icon}</div>
-                      <div>
-                        <span className="font-semibold text-xs text-slate-200 block">
+                      {role.icon}
+                      <div style={{ textAlign: "left" }}>
+                        <span style={{ fontSize: 12, fontWeight: "bold", display: "block", color: selectedRole === role.id ? "var(--text-gold)" : "var(--text-main)" }}>
                           {role.name}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
+                        <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
                           {role.baseHp} HP • {role.baseMp} MP
                         </span>
                       </div>
@@ -280,138 +286,131 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                className="fantasy-btn py-3 px-6 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-medium text-sm rounded-xl shadow-lg shadow-amber-900/30 flex items-center justify-center gap-2 mt-2"
-              >
-                <LogIn className="w-4 h-4" /> Enter Gathering Hall
+              {/* Submit */}
+              <button type="submit" className="fantasy-btn fantasy-btn-primary" style={{ padding: 14, fontSize: 14 }}>
+                <LogIn style={{ width: 16, height: 16 }} /> Enter Gathering Hall
               </button>
             </form>
           </div>
         </main>
       ) : (
         /* Active Multiplayer Lobby Room */
-        <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 overflow-hidden">
-          {/* Left Column: Local Player Card & Expedition Status */}
-          <div className="lg:col-span-4 flex flex-col gap-4 overflow-y-auto">
-            {/* Player Profile Card */}
-            <div className="glass-panel p-5 flex flex-col gap-4 border-amber-500/30">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div className="flex items-center gap-3">
+        <main className="lobby-layout">
+          {/* Left Column: Your Profile & Party Status */}
+          <div className="lobby-col">
+            <div className="glass-panel" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", pb: 12, paddingBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/20 shadow-md"
-                    style={{ backgroundColor: localPlayer?.color || "#38bdf8" }}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 10,
+                      backgroundColor: localPlayer?.color || "#38bdf8",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: "2px solid #fff",
+                    }}
                   >
-                    <Shield className="w-5 h-5 text-white" />
+                    <Shield style={{ width: 20, height: 20, color: "#fff" }} />
                   </div>
                   <div>
-                    <h2 className="font-cinzel font-bold text-sm text-amber-200">
+                    <h2 className="font-cinzel" style={{ fontSize: 15, fontWeight: "bold", color: "var(--text-gold)", margin: 0 }}>
                       {localPlayer?.name || inputName || "Adventurer"}
                     </h2>
-                    <span className="text-[11px] text-slate-400 font-mono">
-                      Level 1 • Expedition Leader
+                    <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                      Level 1 • Party Leader
                     </span>
                   </div>
                 </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">
+                <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", padding: "2px 8px", borderRadius: 4, background: "rgba(245,158,11,0.2)", color: "var(--text-gold)", fontWeight: "bold", border: "1px solid var(--border-gold)" }}>
                   YOU
                 </span>
               </div>
 
-              {/* Party Member Breakdown */}
-              <div className="space-y-2">
-                <span className="text-xs font-semibold text-slate-300 block">
-                  Active Party Roster
+              {/* Party Members Roster */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-main)" }}>
+                  Active Party Members
                 </span>
                 {localPlayer?.members?.map((m) => (
-                  <div
-                    key={m.id}
-                    className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800/80 flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                      <span className="font-medium text-slate-200">{m.name}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">({m.classRole})</span>
+                  <div key={m.id} className="card-item" style={{ padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-emerald)" }} />
+                      <strong style={{ color: "var(--text-main)" }}>{m.name}</strong>
+                      <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>({m.classRole})</span>
                     </div>
-                    <span className="text-[10px] font-mono text-rose-300">
+                    <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--accent-rose)" }}>
                       {m.currentHp}/{m.maxHp} HP
                     </span>
                   </div>
                 ))}
               </div>
 
-              {/* Ready Status Toggle */}
+              {/* Ready Up Button */}
               <button
                 onClick={() => setIsReady(!isReady)}
-                className={`fantasy-btn py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
-                  isReady
-                    ? "bg-gradient-to-r from-emerald-600 to-emerald-700 border-emerald-500 text-white shadow-lg shadow-emerald-900/30"
-                    : "bg-slate-900/80 border-slate-700 hover:border-amber-500/60 text-slate-200"
-                }`}
+                className={`fantasy-btn ${isReady ? "fantasy-btn-ready" : "fantasy-btn-primary"}`}
+                style={{ width: "100%", padding: 12, fontSize: 13 }}
               >
                 {isReady ? (
                   <>
-                    <CheckCircle2 className="w-5 h-5 text-emerald-300" /> Ready for Expedition
+                    <CheckCircle2 style={{ width: 16, height: 16 }} /> Ready for Expedition
                   </>
                 ) : (
                   <>
-                    <Clock className="w-5 h-5 text-slate-400" /> Click to Ready Up
+                    <Clock style={{ width: 16, height: 16 }} /> Click to Ready Up
                   </>
                 )}
               </button>
             </div>
 
-            {/* Expedition Notice Board */}
-            <div className="glass-panel p-4 flex flex-col gap-3 flex-1">
-              <div className="flex items-center gap-2 text-xs font-cinzel font-bold text-amber-300 border-b border-slate-800 pb-2">
-                <Scroll className="w-4 h-4 text-amber-400" /> Active Realm Bounties
+            {/* Bounties Notice Board */}
+            <div className="glass-panel" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: "bold", color: "var(--text-gold)", borderBottom: "1px solid var(--border-subtle)", paddingBottom: 8 }}>
+                <Scroll style={{ width: 16, height: 16 }} /> Expedition Bounties
               </div>
-              <div className="space-y-2 text-xs">
-                <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800/80">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-semibold text-slate-200">The Sunken Shrine of Eloria</span>
-                    <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
-                      Tier 1
-                    </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="card-item" style={{ fontSize: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <strong style={{ color: "var(--text-main)" }}>Sunken Shrine of Eloria</strong>
+                    <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--accent-emerald)" }}>Tier 1</span>
                   </div>
-                  <p className="text-[11px] text-slate-400">
-                    Ancient relic altar pulsing northeast of Haven's sanctuary.
+                  <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0 }}>
+                    Ancient marble shrine humming with forgotten divine relics.
                   </p>
                 </div>
-
-                <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800/80">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-semibold text-slate-200">Crypt of the Howling King</span>
-                    <span className="text-[10px] text-rose-400 font-mono bg-rose-950/60 px-1.5 py-0.5 rounded border border-rose-800">
-                      Tier 3 Dungeon
-                    </span>
+                <div className="card-item" style={{ fontSize: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <strong style={{ color: "var(--text-main)" }}>Crypt of the Howling King</strong>
+                    <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--accent-rose)" }}>Tier 3 Dungeon</span>
                   </div>
-                  <p className="text-[11px] text-slate-400">
-                    Subterranean crypt harboring restless undead. High danger.
+                  <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0 }}>
+                    Subterranean crypt harboring skeletal raiders.
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Center Column: Live Connected Adventurers in Lobby */}
-          <div className="lg:col-span-4 glass-panel p-4 flex flex-col gap-3 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-cyan-400" />
-                <h3 className="font-cinzel text-xs font-bold text-slate-200">
+          {/* Center Column: Live Adventurers in Room */}
+          <div className="lobby-col glass-panel" style={{ padding: 18, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Users style={{ width: 18, height: 18, color: "var(--accent-cyan)" }} />
+                <h3 className="font-cinzel" style={{ fontSize: 14, fontWeight: "bold", margin: 0 }}>
                   Gathering Hall Adventurers
                 </h3>
               </div>
-              <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 font-semibold">
+              <span className="status-pill" style={{ color: "var(--accent-emerald)" }}>
                 {playerList.length} Online
               </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4 }}>
               {playerList.length === 0 ? (
-                <div className="text-center text-slate-500 text-xs py-8 italic">
+                <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 13, padding: 32, fontStyle: "italic" }}>
                   Connecting to realm server...
                 </div>
               ) : (
@@ -419,43 +418,41 @@ export const App: React.FC = () => {
                   const isLocal = p.id === netClient.localSessionId;
 
                   return (
-                    <div
-                      key={p.id}
-                      className={`p-3 rounded-xl border transition-all flex items-center justify-between ${
-                        isLocal
-                          ? "bg-amber-500/10 border-amber-500/30"
-                          : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
+                    <div key={p.id} className={`player-list-item ${isLocal ? "is-local" : ""}`}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center border border-white/20 shadow-sm"
-                          style={{ backgroundColor: p.color }}
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 8,
+                            backgroundColor: p.color,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "1.5px solid #fff",
+                          }}
                         >
-                          <Shield className="w-4 h-4 text-white" />
+                          <Shield style={{ width: 18, height: 18, color: "#fff" }} />
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-xs text-slate-100">
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <strong style={{ fontSize: 13, color: isLocal ? "var(--text-gold)" : "var(--text-main)" }}>
                               {p.name}
-                            </span>
+                            </strong>
                             {isLocal && (
-                              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">
+                              <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", padding: "1px 6px", borderRadius: 3, background: "rgba(245,158,11,0.2)", color: "var(--text-gold)", fontWeight: "bold", border: "1px solid var(--border-gold)" }}>
                                 YOU
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] text-slate-400 font-mono">
-                            4 Party Members • Level 1
+                          <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                            4 Heroes • Ready for Frontier
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-mono">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                          Ready
-                        </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--accent-emerald)", fontFamily: "var(--font-mono)" }}>
+                        <span className="pulse-indicator" /> Ready
                       </div>
                     </div>
                   );
@@ -464,98 +461,92 @@ export const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Real-Time Realm & Lobby Chat */}
-          <div className="lg:col-span-4 glass-panel flex flex-col overflow-hidden">
-            <div className="p-3 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-amber-400" />
-                <span className="font-cinzel text-xs font-bold text-slate-200">
+          {/* Right Column: Real-Time Tavern Chat */}
+          <div className="lobby-col glass-panel" style={{ overflow: "hidden" }}>
+            <div style={{ padding: 14, borderBottom: "1px solid var(--border-subtle)", background: "rgba(15,23,42,0.6)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <MessageSquare style={{ width: 16, height: 16, color: "var(--accent-gold)" }} />
+                <span className="font-cinzel" style={{ fontSize: 13, fontWeight: "bold" }}>
                   Tavern Chronicle Chat
                 </span>
               </div>
-              <div className="flex gap-1">
+              <div style={{ display: "flex", gap: 6 }}>
                 <button
                   onClick={() => setActiveChannel("GLOBAL")}
-                  className={`text-[11px] px-2.5 py-0.5 rounded transition-colors ${
-                    activeChannel === "GLOBAL"
-                      ? "bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/40"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
+                  style={{
+                    padding: "3px 8px",
+                    borderRadius: 4,
+                    fontSize: 11,
+                    cursor: "pointer",
+                    border: "1px solid",
+                    borderColor: activeChannel === "GLOBAL" ? "var(--accent-gold)" : "transparent",
+                    background: activeChannel === "GLOBAL" ? "rgba(245,158,11,0.2)" : "transparent",
+                    color: activeChannel === "GLOBAL" ? "var(--text-gold)" : "var(--text-muted)",
+                  }}
                 >
                   Realm
                 </button>
                 <button
                   onClick={() => setActiveChannel("PARTY")}
-                  className={`text-[11px] px-2.5 py-0.5 rounded transition-colors ${
-                    activeChannel === "PARTY"
-                      ? "bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/40"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
+                  style={{
+                    padding: "3px 8px",
+                    borderRadius: 4,
+                    fontSize: 11,
+                    cursor: "pointer",
+                    border: "1px solid",
+                    borderColor: activeChannel === "PARTY" ? "var(--accent-cyan)" : "transparent",
+                    background: activeChannel === "PARTY" ? "rgba(56,189,248,0.2)" : "transparent",
+                    color: activeChannel === "PARTY" ? "var(--accent-cyan)" : "var(--text-muted)",
+                  }}
                 >
                   Party
                 </button>
               </div>
             </div>
 
-            {/* Message Feed */}
-            <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5 text-xs font-sans">
-              {chatMessages.length === 0 ? (
-                <div className="text-slate-500 italic text-[11px] py-4 text-center">
-                  Welcome to the gathering hall. Chat with fellow adventurers!
-                </div>
-              ) : (
-                chatMessages.map((msg) => {
-                  const timeStr = new Date(msg.timestamp).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
+            {/* Messages Feed */}
+            <div className="chat-messages-box">
+              {chatMessages.map((msg) => {
+                const timeStr = new Date(msg.timestamp).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
 
-                  if (msg.channel === "SYSTEM") {
-                    return (
-                      <div
-                        key={msg.id}
-                        className="p-2 rounded-lg bg-amber-950/30 border border-amber-800/40 text-amber-300/90 text-[11px] italic"
-                      >
-                        🔔 <strong>[Chronicle]</strong> {msg.content}
-                      </div>
-                    );
-                  }
-
+                if (msg.channel === "SYSTEM") {
                   return (
-                    <div key={msg.id} className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-slate-500 font-mono">{timeStr}</span>
-                        <span
-                          className={`font-semibold ${
-                            msg.channel === "PARTY" ? "text-cyan-400" : "text-amber-300"
-                          }`}
-                        >
-                          {msg.senderName}
-                        </span>
-                      </div>
-                      <p className="text-slate-200 bg-slate-900/60 p-2 rounded-lg border border-slate-800/80 break-words">
-                        {msg.content}
-                      </p>
+                    <div key={msg.id} style={{ background: "rgba(120,53,15,0.25)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#fde68a", fontStyle: "italic" }}>
+                      🔔 <strong>[Chronicle]</strong> {msg.content}
                     </div>
                   );
-                })
-              )}
+                }
+
+                return (
+                  <div key={msg.id} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{timeStr}</span>
+                      <strong style={{ fontSize: 12, color: msg.channel === "PARTY" ? "var(--accent-cyan)" : "var(--text-gold)" }}>
+                        {msg.senderName}:
+                      </strong>
+                    </div>
+                    <div className="chat-bubble">
+                      {msg.content}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Chat Input */}
-            <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-800 bg-slate-900/40 flex gap-2">
+            <form onSubmit={handleSendMessage} className="chat-input-row">
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder={`Message ${activeChannel.toLowerCase()}...`}
-                className="flex-1 bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400/60"
+                className="fantasy-input"
               />
-              <button
-                type="submit"
-                className="fantasy-btn py-2 px-3.5 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 rounded-xl"
-              >
-                <Send className="w-3.5 h-3.5" />
+              <button type="submit" className="fantasy-btn fantasy-btn-primary" style={{ padding: "8px 14px" }}>
+                <Send style={{ width: 14, height: 14 }} />
               </button>
             </form>
           </div>
