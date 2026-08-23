@@ -98,6 +98,16 @@ export const App: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
+    // Check URL parameters for OAuth errors
+    const hash = window.location.hash;
+    const search = window.location.search;
+    if (hash.includes("error_description=") || search.includes("error_description=")) {
+      const match = (hash + search).match(/error_description=([^&]+)/);
+      if (match) {
+        setAuthError(decodeURIComponent(match[1].replace(/\+/g, " ")));
+      }
+    }
+
     // Check existing Discord Auth session
     authService.getCurrentUser().then((profile) => {
       if (isMounted && profile) {
@@ -106,7 +116,10 @@ export const App: React.FC = () => {
     });
 
     const unsubscribeAuth = authService.onAuthStateChange((profile) => {
-      if (isMounted) setAuthProfile(profile);
+      if (isMounted) {
+        setAuthProfile(profile);
+        if (profile) setAuthError(null);
+      }
     });
 
     netClient.onStatusChange = (newStatus) => {

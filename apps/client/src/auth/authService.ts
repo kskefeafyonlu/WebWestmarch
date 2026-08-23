@@ -24,8 +24,12 @@ export class AuthService {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        flowType: "implicit",
       },
     });
+
+    // Check if redirect contains OAuth code or hash to exchange
+    this.handleRedirectAuth();
   }
 
   public static getInstance(): AuthService {
@@ -35,13 +39,53 @@ export class AuthService {
     return AuthService.instance;
   }
 
+  private async handleRedirectAuth(): Promise<void> {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get("code");
+
+      if (code) {
+        console.log("[AuthService] Exchanging OAuth PKCE code for session...");
+        await this.supabase.auth.exchangeCodeForSession(code);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch (err) {
+      console.warn("[AuthService] Error during redirect auth handling:", err);
+    }
+  }
+
+  public extractProfile(user: User): AuthProfile {
+    const meta = user.user_metadata || {};
+    const username =
+      meta.custom_claims?.global_name ||
+      meta.global_name ||
+      meta.full_name ||
+      meta.name ||
+      meta.user_name ||
+      meta.preferred_username ||
+      user.email?.split("@")[0] ||
+      "Adventurer";
+
+    const avatarUrl = meta.avatar_url || meta.picture || undefined;
+
+    return {
+      id: user.id,
+      username,
+      avatarUrl,
+      isDiscord: true,
+      isAdmin: false,
+    };
+  }
+
   /**
    * Triggers Discord OAuth Sign-In via Supabase
    */
   public async signInWithDiscord(): Promise<{ error?: string }> {
     try {
-      const redirectUrl = window.location.origin;
-      const { error } = await this.supabase.auth.signInWithOAuth({
+      const redirectUrl = window.location.href.split("#")[0].split("?")[0];
+      console.log(`[AuthService] Signing in with Discord, redirecting to: ${redirectUrl}`);
+
+      const { data, error } = await this.supabase.auth.signInWithOAuth({
         provider: "discord",
         options: {
           redirectTo: redirectUrl,
@@ -50,10 +94,16 @@ export class AuthService {
       });
 
       if (error) {
+        console.error("[AuthService] Discord OAuth Error:", error.message);
         return { error: error.message };
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
       }
       return {};
     } catch (err: any) {
+      console.error("[AuthService] Exception:", err);
       return { error: err?.message || "Failed to initiate Discord OAuth." };
     }
   }
@@ -69,28 +119,15 @@ export class AuthService {
    * Fetches the current logged in user (if any)
    */
   public async getCurrentUser(): Promise<AuthProfile | null> {
-    const { data } = await this.supabase.auth.getSession();
-    const user = data?.session?.user;
-
-    if (!user) return null;
-
-    const username =
-      user.user_metadata?.custom_claims?.global_name ||
-      user.user_metadata?.full_name ||
-      user.user_metadata?.name ||
-      user.user_metadata?.user_name ||
-      user.email?.split("@")[0] ||
-      "Adventurer";
-
-    const avatarUrl = user.user_metadata?.avatar_url;
-
-    return {
-      id: user.id,
-      username,
-      avatarUrl,
-      isDiscord: true,
-      isAdmin: false,
-    };
+    try {
+      const { data } = await this.supabase.auth.getSession();
+      const user = data?.session?.user;
+      if (!user) return null;
+      return this.extractProfile(user);
+    } catch (err) {
+      console.warn("[AuthService] Failed to get session:", err);
+      return null;
+    }
   }
 
   /**
@@ -100,22 +137,7 @@ export class AuthService {
     const { data: listener } = this.supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session?.user) {
-          const user = session.user;
-          const username =
-            user.user_metadata?.custom_claims?.global_name ||
-            user.user_metadata?.full_name ||
-            user.user_metadata?.name ||
-            user.user_metadata?.user_name ||
-            user.email?.split("@")[0] ||
-            "Adventurer";
-
-          callback({
-            id: user.id,
-            username,
-            avatarUrl: user.user_metadata?.avatar_url,
-            isDiscord: true,
-            isAdmin: false,
-          });
+          callback(this.extractProfile(session.user));
         } else {
           callback(null);
         }
