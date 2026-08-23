@@ -1,0 +1,26 @@
+{
+  "name": "webwestmarch-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=apps/server",
+    "dev:client": "npx vite apps/client --port 5173",
+    "dev": "npm run build:shared && concurrently -k -p \"[{name}]\" -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"npm run dev:server\" \"npm run dev:client\"",
+    "build:shared": "npm run build --workspace=packages/shared",
+    "build:server": "npm run build --workspace=apps/server",
+    "build:client": "npm run build --workspace=apps/client",
+    "build": "npm run build:shared && npm run build:server && npm run build:client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.8.2",
+    "vite": "^6.4.3"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.62.5"
+  }
+}
