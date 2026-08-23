@@ -129,6 +129,16 @@ export class WorldRoom extends Room<WorldRoomState> {
         this.state.chatHistory.shift();
       }
       this.state.chatHistory.push(msg);
+
+      // Fast immediate broadcast to all connected clients
+      this.broadcast("chat_message", {
+        id: msg.id,
+        senderId: msg.senderId,
+        senderName: msg.senderName,
+        channel: msg.channel,
+        content: msg.content,
+        timestamp: msg.timestamp,
+      });
     });
 
     // Admin / GM Handcrafted Delta Override creation
@@ -199,9 +209,18 @@ export class WorldRoom extends Room<WorldRoomState> {
     welcomeMsg.senderId = "system";
     welcomeMsg.senderName = "Chronicle";
     welcomeMsg.channel = "SYSTEM";
-    welcomeMsg.content = `${player.name} has embarked into the West Marches realm at Haven's Rest.`;
+    welcomeMsg.content = `${player.name} has entered the gathering hall.`;
     welcomeMsg.timestamp = Date.now();
     this.state.chatHistory.push(welcomeMsg);
+
+    this.broadcast("chat_message", {
+      id: welcomeMsg.id,
+      senderId: welcomeMsg.senderId,
+      senderName: welcomeMsg.senderName,
+      channel: welcomeMsg.channel,
+      content: welcomeMsg.content,
+      timestamp: welcomeMsg.timestamp,
+    });
 
     console.log(`[WorldRoom] Client joined: ${client.sessionId} as ${name}`);
   }

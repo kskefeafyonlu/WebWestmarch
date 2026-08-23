@@ -77,14 +77,32 @@ export class GameNetworkClient {
       this.setStatus("CONNECTED");
       console.log(`[GameClient] Joined room: ${this.room.id} as session: ${this.localSessionId}`);
 
-      // 1. Initial State Population (Existing Players)
-      if (this.room.state && this.room.state.players) {
-        this.room.state.players.forEach((player: any, key: string) => {
-          this.updatePlayerFromSchema(key, player);
-        });
-      }
+      // 1. Initial State Sync & Continuous State Change Listener
+      this.room.onStateChange((state: any) => {
+        if (state && state.players) {
+          // Clear stale players
+          const currentIds = new Set<string>();
+          state.players.forEach((player: any, key: string) => {
+            currentIds.add(key);
+            this.updatePlayerFromSchema(key, player);
+          });
 
-      // 2. Colyseus Schema v2 Callbacks
+          for (const existingId of this.players.keys()) {
+            if (!currentIds.has(existingId)) {
+              this.players.delete(existingId);
+            }
+          }
+
+          this.notifyPlayersUpdate();
+        }
+      });
+
+      // 2. Immediate direct message listener for fast broadcast delivery
+      this.room.onMessage("chat_message", (msg: ChatMsg) => {
+        this.onChatReceived?.(msg);
+      });
+
+      // 3. Fallback schema callbacks
       if (this.room.state?.players?.onAdd) {
         this.room.state.players.onAdd((player: any, key: string) => {
           this.updatePlayerFromSchema(key, player);
@@ -101,52 +119,16 @@ export class GameNetworkClient {
         });
       }
 
-      // 3. Chat History Synchronization
-      if (this.room.state?.chatHistory) {
-        this.room.state.chatHistory.forEach((item: any) => {
-          this.onChatReceived?.({
-            id: item.id || `msg_${Math.random()}`,
-            senderId: item.senderId,
-            senderName: item.senderName,
-            channel: item.channel || "GLOBAL",
-            content: item.content,
-            timestamp: item.timestamp || Date.now(),
-          });
-        });
-
-        if (typeof this.room.state.chatHistory.onAdd === "function") {
-          this.room.state.chatHistory.onAdd((item: any) => {
-            this.onChatReceived?.({
-              id: item.id || `msg_${Math.random()}`,
-              senderId: item.senderId,
-              senderName: item.senderName,
-              channel: item.channel || "GLOBAL",
-              content: item.content,
-              timestamp: item.timestamp || Date.now(),
-            });
-          });
-        }
-      }
-
-      // 4. Custom Broadcast Messages
-      this.room.onMessage("delta_updated", (data) => {
-        this.onDeltaUpdated?.(data.delta);
-      });
-
-      this.room.onMessage("error", (err: { message: string }) => {
-        console.warn("[GameClient] Server Warning/Error:", err.message);
-      });
-
       this.room.onLeave((code) => {
         console.log("[GameClient] Left room with code:", code);
         this.setStatus("DISCONNECTED");
       });
     } catch (err: any) {
       console.error("[GameClient] Connection failed:", err);
-      this.errorMessage = err?.message || "Failed to establish WebSocket connection to game server.";
+      this.errorMessage = err?.message || "Failed to establish WebSocket connection.";
       this.setStatus("ERROR");
 
-      // Create Local Fallback Profile so user is not stuck on a blank screen
+      // Local fallback profile
       this.createLocalFallbackPlayer(playerName);
     }
   }
@@ -174,16 +156,6 @@ export class GameNetworkClient {
     });
 
     this.notifyPlayersUpdate();
-
-    // Local welcome chronicle
-    this.onChatReceived?.({
-      id: `local_welcome`,
-      senderId: "system",
-      senderName: "Chronicle",
-      channel: "SYSTEM",
-      content: `Welcome, ${playerName}. (Running in offline preview mode until server is deployed to Fly.io).`,
-      timestamp: Date.now(),
-    });
   }
 
   private updatePlayerFromSchema(key: string, schema: any): void {
@@ -214,8 +186,6 @@ export class GameNetworkClient {
       isMoving: schema.isMoving ?? false,
       members,
     });
-
-    this.notifyPlayersUpdate();
   }
 
   private notifyPlayersUpdate(): void {
@@ -231,7 +201,7 @@ export class GameNetworkClient {
     if (this.room && this.status === "CONNECTED") {
       this.room.send("chat", { content, channel });
     } else {
-      // Offline fallback: echo message locally
+      // Local fallback
       const local = this.getLocalPlayer();
       this.onChatReceived?.({
         id: `msg_${Date.now()}`,
