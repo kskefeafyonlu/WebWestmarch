@@ -50,7 +50,7 @@ export class GameNetworkClient {
   public localSessionId: string | null = null;
 
   private constructor() {
-    this.serverUrl = import.meta.env.VITE_SERVER_URL || "ws://localhost:2567";
+    this.serverUrl = import.meta.env.VITE_SERVER_URL || "wss://webwestmarch.fly.dev";
     this.client = new Client(this.serverUrl);
   }
 
