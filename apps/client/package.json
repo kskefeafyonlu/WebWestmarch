@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
     "@webwestmarch/shared": "*",
     "colyseus.js": "^0.15.28",
     "lucide-react": "^1.16.0",
