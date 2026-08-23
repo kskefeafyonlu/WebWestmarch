@@ -1,4 +1,4 @@
-app = "webwestmarch-server"
+app = "webwestmarch"
 primary_region = "iad"
 
 [build]
