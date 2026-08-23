@@ -5,6 +5,7 @@ import {
   ChatMsg,
   ConnectionStatus,
 } from "./network/GameClient";
+import { AuthService, AuthProfile } from "./auth/authService";
 import {
   Shield,
   Sparkles,
@@ -13,7 +14,6 @@ import {
   Users,
   MessageSquare,
   Send,
-  Wifi,
   WifiOff,
   Flame,
   CheckCircle2,
@@ -22,9 +22,12 @@ import {
   Scroll,
   LogIn,
   AlertTriangle,
-  RefreshCw,
   Edit2,
   Check,
+  KeyRound,
+  LogOut,
+  Crown,
+  UserCheck,
 } from "lucide-react";
 
 const HERO_ROLES = [
@@ -64,13 +67,22 @@ const HERO_ROLES = [
 
 export const App: React.FC = () => {
   const [netClient] = useState(() => GameNetworkClient.getInstance());
+  const [authService] = useState(() => AuthService.getInstance());
+
   const [status, setStatus] = useState<ConnectionStatus>("DISCONNECTED");
   const [players, setPlayers] = useState<Map<string, RemotePlayer>>(new Map());
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
 
+  // Auth & Admin State
+  const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null);
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [adminBypassName, setAdminBypassName] = useState("");
+  const [adminPasscode, setAdminPasscode] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isDiscordLoading, setIsDiscordLoading] = useState(false);
+
   // Lobby Profile State
   const [hasJoinedLobby, setHasJoinedLobby] = useState(false);
-  const [inputName, setInputName] = useState("");
   const [selectedRole, setSelectedRole] = useState("WARRIOR");
   const [isReady, setIsReady] = useState(false);
 
@@ -82,8 +94,20 @@ export const App: React.FC = () => {
   const [chatInput, setChatInput] = useState("");
   const [activeChannel, setActiveChannel] = useState<"GLOBAL" | "PARTY">("GLOBAL");
 
+  // Check initial Supabase Discord session & network listeners
   useEffect(() => {
     let isMounted = true;
+
+    // Check existing Discord Auth session
+    authService.getCurrentUser().then((profile) => {
+      if (isMounted && profile) {
+        setAuthProfile(profile);
+      }
+    });
+
+    const unsubscribeAuth = authService.onAuthStateChange((profile) => {
+      if (isMounted) setAuthProfile(profile);
+    });
 
     netClient.onStatusChange = (newStatus) => {
       if (isMounted) setStatus(newStatus);
@@ -101,12 +125,42 @@ export const App: React.FC = () => {
 
     return () => {
       isMounted = false;
+      unsubscribeAuth();
     };
-  }, [netClient]);
+  }, [netClient, authService]);
 
+  // Handle Discord OAuth Login
+  const handleDiscordLogin = async () => {
+    setIsDiscordLoading(true);
+    setAuthError(null);
+    const { error } = await authService.signInWithDiscord();
+    if (error) {
+      setAuthError(error);
+      setIsDiscordLoading(false);
+    }
+  };
+
+  // Handle Sign Out
+  const handleSignOut = async () => {
+    await authService.signOut();
+    setAuthProfile(null);
+    setHasJoinedLobby(false);
+  };
+
+  // Handle Joining Lobby (Authenticated Discord user or Admin Bypass)
   const handleJoinLobby = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalName = inputName.trim() || `Adventurer #${Math.floor(100 + Math.random() * 900)}`;
+    let finalName = "";
+
+    if (authProfile) {
+      finalName = authProfile.username;
+    } else if (isAdminMode) {
+      finalName = adminBypassName.trim() || `GM Adventurer #${Math.floor(100 + Math.random() * 900)}`;
+    } else {
+      setAuthError("Please login with Discord or activate Admin Bypass to enter.");
+      return;
+    }
+
     setHasJoinedLobby(true);
     await netClient.connect(finalName);
   };
@@ -115,7 +169,8 @@ export const App: React.FC = () => {
     netClient.setServerUrl(serverUrlInput);
     setIsEditingServerUrl(false);
     if (hasJoinedLobby) {
-      netClient.connect(inputName || "Adventurer");
+      const activeName = authProfile?.username || adminBypassName || "Adventurer";
+      netClient.connect(activeName);
     }
   };
 
@@ -147,8 +202,29 @@ export const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Server URL & Status Indicator */}
+        {/* Server URL, User Profile & Status Indicator */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* User / Admin Badge if in Lobby */}
+          {hasJoinedLobby && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 10px", borderRadius: 8, background: "rgba(15,23,42,0.8)", border: "1px solid var(--border-subtle)", fontSize: 11 }}>
+              {authProfile?.avatarUrl ? (
+                <img src={authProfile.avatarUrl} alt="Avatar" style={{ width: 20, height: 20, borderRadius: "50%" }} />
+              ) : (
+                <Crown style={{ width: 14, height: 14, color: "var(--accent-gold)" }} />
+              )}
+              <span style={{ fontWeight: "bold", color: authProfile ? "#5865F2" : "var(--text-gold)" }}>
+                {authProfile ? `@${authProfile.username}` : `[ADMIN] ${adminBypassName || "GM"}`}
+              </span>
+              <button
+                onClick={handleSignOut}
+                title="Sign Out"
+                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", padding: 2 }}
+              >
+                <LogOut style={{ width: 13, height: 13 }} />
+              </button>
+            </div>
+          )}
+
           {isEditingServerUrl ? (
             <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(15,23,42,0.9)", padding: "4px 8px", borderRadius: 8, border: "1px solid var(--border-gold)" }}>
               <input
@@ -187,40 +263,19 @@ export const App: React.FC = () => {
               </span>
             ) : (
               <span style={{ color: "var(--accent-gold)", display: "flex", alignItems: "center", gap: 6 }}>
-                <AlertTriangle style={{ width: 14, height: 14 }} /> Offline Preview
+                <AlertTriangle style={{ width: 14, height: 14 }} /> Standby
               </span>
             )}
           </div>
         </div>
       </header>
 
-      {/* Notice Banner when offline */}
-      {status === "ERROR" && (
-        <div className="notice-banner">
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <AlertTriangle style={{ width: 16, height: 16, color: "var(--accent-gold)" }} />
-            <span>
-              Could not reach WebSocket at <code>{netClient.serverUrl}</code>. (Make sure URL is <code>wss://webwestmarch.fly.dev</code> without <code>-server</code>).
-            </span>
-          </div>
-          <button
-            onClick={() => {
-              netClient.setServerUrl("wss://webwestmarch.fly.dev");
-              setServerUrlInput("wss://webwestmarch.fly.dev");
-              netClient.connect(inputName || "Adventurer");
-            }}
-            style={{ background: "none", border: "none", color: "var(--accent-gold)", cursor: "pointer", textDecoration: "underline", fontWeight: "bold", fontSize: 11 }}
-          >
-            Switch to wss://webwestmarch.fly.dev
-          </button>
-        </div>
-      )}
-
       {/* Main Content Body */}
       {!hasJoinedLobby ? (
-        /* Welcome / Name Entry View */
+        /* Welcome / Discord Gate / Admin Bypass View */
         <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div className="glass-panel" style={{ width: "100%", maxWidth: 480, padding: 32, display: "flex", flexDirection: "column", gap: 24 }}>
+          <div className="glass-panel" style={{ width: "100%", maxWidth: 520, padding: 32, display: "flex", flexDirection: "column", gap: 24 }}>
+            {/* Header / Realm Crest */}
             <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
               <div style={{ padding: 12, borderRadius: "50%", background: "rgba(245, 158, 11, 0.2)", border: "1px solid var(--border-gold)", color: "var(--accent-gold)", display: "flex" }}>
                 <Flame style={{ width: 32, height: 32 }} />
@@ -229,68 +284,218 @@ export const App: React.FC = () => {
                 Enter Haven's Sanctuary
               </h2>
               <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-                Choose your Adventurer Name and Starting Class Role to join the live gathering hall.
+                Official West Marches Campaign Gate. Authenticate with Discord or use Admin Bypass.
               </p>
             </div>
 
-            <form onSubmit={handleJoinLobby} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-main)", display: "flex", alignItems: "center", gap: 6 }}>
-                  <Shield style={{ width: 14, height: 14, color: "var(--accent-gold)" }} /> Adventurer Name
-                </label>
-                <input
-                  type="text"
-                  autoFocus
-                  maxLength={24}
-                  value={inputName}
-                  onChange={(e) => setInputName(e.target.value)}
-                  placeholder="e.g. Valeria Ironheart"
-                  className="fantasy-input"
-                  style={{ padding: 12, fontSize: 14 }}
-                />
+            {authError && (
+              <div style={{ background: "rgba(244,63,94,0.15)", border: "1px solid var(--border-rose)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--accent-rose)", display: "flex", alignItems: "center", gap: 8 }}>
+                <AlertTriangle style={{ width: 16, height: 16, flexShrink: 0 }} />
+                <span>{authError}</span>
               </div>
+            )}
 
-              {/* Class Role Picker */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-main)" }}>
-                  Select Starting Class
-                </label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  {HERO_ROLES.map((role) => (
-                    <button
-                      key={role.id}
-                      type="button"
-                      onClick={() => setSelectedRole(role.id)}
-                      className="card-item"
-                      style={{
-                        padding: 12,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        cursor: "pointer",
-                        borderColor: selectedRole === role.id ? "var(--accent-gold)" : "var(--border-subtle)",
-                        background: selectedRole === role.id ? "rgba(245, 158, 11, 0.15)" : "var(--bg-card)",
-                      }}
-                    >
-                      {role.icon}
-                      <div style={{ textAlign: "left" }}>
-                        <span style={{ fontSize: 12, fontWeight: "bold", display: "block", color: selectedRole === role.id ? "var(--text-gold)" : "var(--text-main)" }}>
-                          {role.name}
-                        </span>
-                        <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                          {role.baseHp} HP • {role.baseMp} MP
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+            {/* Mode 1: Logged In via Discord */}
+            {authProfile ? (
+              <form onSubmit={handleJoinLobby} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div className="card-item" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(88,101,242,0.12)", borderColor: "rgba(88,101,242,0.4)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    {authProfile.avatarUrl ? (
+                      <img src={authProfile.avatarUrl} alt="Discord Avatar" style={{ width: 38, height: 38, borderRadius: "50%", border: "2px solid #5865F2" }} />
+                    ) : (
+                      <UserCheck style={{ width: 24, height: 24, color: "#5865F2" }} />
+                    )}
+                    <div>
+                      <span style={{ fontSize: 10, color: "#a5b4fc", fontFamily: "var(--font-mono)", textTransform: "uppercase", fontWeight: "bold" }}>
+                        Verified Discord Adventurer
+                      </span>
+                      <strong style={{ fontSize: 15, color: "#fff", display: "block" }}>
+                        @{authProfile.username}
+                      </strong>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="fantasy-btn"
+                    style={{ padding: "6px 12px", fontSize: 11 }}
+                  >
+                    Switch Account
+                  </button>
                 </div>
-              </div>
 
-              {/* Submit */}
-              <button type="submit" className="fantasy-btn fantasy-btn-primary" style={{ padding: 14, fontSize: 14 }}>
-                <LogIn style={{ width: 16, height: 16 }} /> Enter Gathering Hall
-              </button>
-            </form>
+                {/* Class Role Picker */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-main)" }}>
+                    Select Starting Class
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    {HERO_ROLES.map((role) => (
+                      <button
+                        key={role.id}
+                        type="button"
+                        onClick={() => setSelectedRole(role.id)}
+                        className="card-item"
+                        style={{
+                          padding: 12,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          cursor: "pointer",
+                          borderColor: selectedRole === role.id ? "var(--accent-gold)" : "var(--border-subtle)",
+                          background: selectedRole === role.id ? "rgba(245, 158, 11, 0.15)" : "var(--bg-card)",
+                        }}
+                      >
+                        {role.icon}
+                        <div style={{ textAlign: "left" }}>
+                          <span style={{ fontSize: 12, fontWeight: "bold", display: "block", color: selectedRole === role.id ? "var(--text-gold)" : "var(--text-main)" }}>
+                            {role.name}
+                          </span>
+                          <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                            {role.baseHp} HP • {role.baseMp} MP
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button type="submit" className="fantasy-btn fantasy-btn-primary" style={{ padding: 14, fontSize: 14 }}>
+                  <LogIn style={{ width: 16, height: 16 }} /> Enter Gathering Hall
+                </button>
+              </form>
+            ) : !isAdminMode ? (
+              /* Mode 2: Standard Discord Login Gate */
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {/* Primary Discord OAuth CTA */}
+                <button
+                  type="button"
+                  onClick={handleDiscordLogin}
+                  disabled={isDiscordLoading}
+                  style={{
+                    backgroundColor: "#5865F2",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: 12,
+                    padding: "16px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 12,
+                    cursor: "pointer",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    boxShadow: "0 8px 24px rgba(88, 101, 242, 0.35)",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#4752C4")}
+                  onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#5865F2")}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                  </svg>
+                  <span>{isDiscordLoading ? "Redirecting to Discord..." : "Login with Discord"}</span>
+                </button>
+
+                <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>
+                  Required for adventurers to save character progress and discord roles.
+                </div>
+
+                {/* Divider */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "8px 0" }}>
+                  <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
+                  <span style={{ fontSize: 11, color: "var(--text-dim)", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
+                    Admin / Dev Testing
+                  </span>
+                  <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
+                </div>
+
+                {/* Admin Bypass Trigger */}
+                <button
+                  type="button"
+                  onClick={() => setIsAdminMode(true)}
+                  className="fantasy-btn"
+                  style={{ width: "100%", padding: 12, fontSize: 12, borderColor: "var(--border-gold)", color: "var(--accent-gold)" }}
+                >
+                  <KeyRound style={{ width: 14, height: 14 }} /> Admin & Developer Bypass Mode
+                </button>
+              </div>
+            ) : (
+              /* Mode 3: Admin / Dev Testing Mode */
+              <form onSubmit={handleJoinLobby} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                <div className="card-item" style={{ background: "rgba(245,158,11,0.1)", borderColor: "var(--border-gold)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Crown style={{ width: 18, height: 18, color: "var(--accent-gold)" }} />
+                    <span style={{ fontSize: 12, fontWeight: "bold", color: "var(--text-gold)" }}>
+                      Admin / Developer Override Active
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsAdminMode(false)}
+                    style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", textDecoration: "underline" }}
+                  >
+                    Back to Discord
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-main)" }}>
+                    Tester / GM Display Name
+                  </label>
+                  <input
+                    type="text"
+                    autoFocus
+                    maxLength={24}
+                    value={adminBypassName}
+                    onChange={(e) => setAdminBypassName(e.target.value)}
+                    placeholder="e.g. GM Efe / Tester #1"
+                    className="fantasy-input"
+                    style={{ padding: 12, fontSize: 14 }}
+                  />
+                </div>
+
+                {/* Class Role Picker */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-main)" }}>
+                    Select Starting Class
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    {HERO_ROLES.map((role) => (
+                      <button
+                        key={role.id}
+                        type="button"
+                        onClick={() => setSelectedRole(role.id)}
+                        className="card-item"
+                        style={{
+                          padding: 12,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          cursor: "pointer",
+                          borderColor: selectedRole === role.id ? "var(--accent-gold)" : "var(--border-subtle)",
+                          background: selectedRole === role.id ? "rgba(245, 158, 11, 0.15)" : "var(--bg-card)",
+                        }}
+                      >
+                        {role.icon}
+                        <div style={{ textAlign: "left" }}>
+                          <span style={{ fontSize: 12, fontWeight: "bold", display: "block", color: selectedRole === role.id ? "var(--text-gold)" : "var(--text-main)" }}>
+                            {role.name}
+                          </span>
+                          <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                            {role.baseHp} HP • {role.baseMp} MP
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button type="submit" className="fantasy-btn fantasy-btn-primary" style={{ padding: 14, fontSize: 14 }}>
+                  <LogIn style={{ width: 16, height: 16 }} /> Embark into Lobby (Admin Bypass)
+                </button>
+              </form>
+            )}
           </div>
         </main>
       ) : (
@@ -317,10 +522,10 @@ export const App: React.FC = () => {
                   </div>
                   <div>
                     <h2 className="font-cinzel" style={{ fontSize: 15, fontWeight: "bold", color: "var(--text-gold)", margin: 0 }}>
-                      {localPlayer?.name || inputName || "Adventurer"}
+                      {localPlayer?.name || authProfile?.username || adminBypassName || "Adventurer"}
                     </h2>
                     <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                      Level 1 • Party Leader
+                      {authProfile ? "Discord Verified" : "Admin Session"} • Party Leader
                     </span>
                   </div>
                 </div>
