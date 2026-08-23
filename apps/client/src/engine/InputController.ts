@@ -24,7 +24,7 @@ export class InputController {
   }
 
   private attachEventListeners(): void {
-    // Mouse Drag (Pan) & Click
+    // Mouse Drag (Pan) & Tile Click
     this.canvasElement.addEventListener("mousedown", (e) => this.onMouseDown(e));
     window.addEventListener("mousemove", (e) => this.onMouseMove(e));
     window.addEventListener("mouseup", (e) => this.onMouseUp(e));
@@ -32,7 +32,7 @@ export class InputController {
     // Mouse Wheel (Zoom)
     this.canvasElement.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
 
-    // Keyboard navigation
+    // Keyboard Spacebar for Camera Re-center
     window.addEventListener("keydown", (e) => this.onKeyDown(e));
   }
 
@@ -71,25 +71,14 @@ export class InputController {
     if (this.isDragging) {
       this.isDragging = false;
 
-      // If it was a quick click without dragging, process tile selection or movement
+      // Click on hex -> select and inspect tile
       if (!this.hasMovedWhileDragging && e.button === 0) {
         const worldPos = this.renderer.screenToWorld(e.clientX, e.clientY);
         const clickedHex = HexMath.pixelToHex(worldPos, GAME_CONFIG.hexRadius);
 
         this.renderer.updateSelection(clickedHex);
         this.onTileSelected?.(clickedHex);
-
-        // If clicked hex is adjacent neighbor to player, trigger move
-        const localPlayer = this.netClient.getLocalPlayer();
-        if (localPlayer) {
-          const playerHex: HexCoord = { q: localPlayer.q, r: localPlayer.r };
-          const dist = HexMath.distance(playerHex, clickedHex);
-          if (dist === 1) {
-            this.netClient.move(clickedHex);
-            this.renderer.setTokenTargetPosition(localPlayer.id, clickedHex);
-            this.renderer.refreshSurroundingTerrain(clickedHex, 8);
-          }
-        }
+        this.renderer.refreshSurroundingTerrain(clickedHex, 6);
       }
     }
   }
@@ -111,54 +100,18 @@ export class InputController {
   }
 
   private onKeyDown(e: KeyboardEvent): void {
-    // Ignore input if typing in chat
     if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") {
       return;
     }
 
-    const localPlayer = this.netClient.getLocalPlayer();
-    if (!localPlayer) return;
-
-    const currentHex: HexCoord = { q: localPlayer.q, r: localPlayer.r };
-    let targetHex: HexCoord | null = null;
-
-    // Flat-topped Hexagonal 6-Directional Keybindings
-    // Q: NW, W: NE, E: East, A: West, S: SE, D: SE / SW
-    switch (e.key.toUpperCase()) {
-      case "D":
-      case "ARROW_RIGHT":
-        targetHex = HexMath.getNeighbor(currentHex, 0); // East
-        break;
-      case "E":
-        targetHex = HexMath.getNeighbor(currentHex, 1); // North-East
-        break;
-      case "W":
-      case "ARROW_UP":
-      case "Q":
-        targetHex = HexMath.getNeighbor(currentHex, 2); // North-West
-        break;
-      case "A":
-      case "ARROW_LEFT":
-        targetHex = HexMath.getNeighbor(currentHex, 3); // West
-        break;
-      case "Z":
-        targetHex = HexMath.getNeighbor(currentHex, 4); // South-West
-        break;
-      case "S":
-      case "ARROW_DOWN":
-      case "X":
-        targetHex = HexMath.getNeighbor(currentHex, 5); // South-East
-        break;
-      case " ": // Space to re-center camera
-        e.preventDefault();
-        this.renderer.centerOnHex(currentHex);
-        break;
-    }
-
-    if (targetHex) {
-      this.netClient.move(targetHex);
-      this.renderer.setTokenTargetPosition(localPlayer.id, targetHex);
-      this.renderer.refreshSurroundingTerrain(targetHex, 8);
+    if (e.key === " ") {
+      e.preventDefault();
+      const localPlayer = this.netClient.getLocalPlayer();
+      if (localPlayer) {
+        this.renderer.centerOnHex({ q: localPlayer.q, r: localPlayer.r });
+      } else {
+        this.renderer.centerOnHex({ q: 0, r: 0 });
+      }
     }
   }
 }

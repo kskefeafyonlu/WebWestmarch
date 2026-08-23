@@ -14,6 +14,7 @@ import {
 import { HexRenderer } from "./engine/HexRenderer";
 import { InputController } from "./engine/InputController";
 import { GameHUD } from "./components/HUD/GameHUD";
+import { NamePromptModal } from "./components/HUD/NamePromptModal";
 
 export const App: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -23,6 +24,11 @@ export const App: React.FC = () => {
   const [worldGen] = useState(() => new WorldChunkGenerator(GAME_CONFIG.worldSeed));
   const [netClient] = useState(() => GameNetworkClient.getInstance());
 
+  const [playerName, setPlayerName] = useState<string | null>(() => {
+    return sessionStorage.getItem("webwestmarch_player_name");
+  });
+  const [isNamePromptOpen, setIsNamePromptOpen] = useState(!playerName);
+
   const [status, setStatus] = useState<ConnectionStatus>("DISCONNECTED");
   const [players, setPlayers] = useState<Map<string, RemotePlayer>>(new Map());
   const [localPlayer, setLocalPlayer] = useState<RemotePlayer | undefined>(undefined);
@@ -30,6 +36,7 @@ export const App: React.FC = () => {
   const [selectedTile, setSelectedTile] = useState<TileData | null>(() => worldGen.getTile({ q: 0, r: 0 }));
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
 
+  // Initialize Renderer and Input Controller
   useEffect(() => {
     let isMounted = true;
 
@@ -75,8 +82,11 @@ export const App: React.FC = () => {
         renderer.refreshSurroundingTerrain(coord, 2);
       };
 
-      // Connect to multiplayer server
-      await netClient.connect(`Expedition Party #${Math.floor(100 + Math.random() * 900)}`);
+      // If name was already set in session, connect immediately
+      const savedName = sessionStorage.getItem("webwestmarch_player_name");
+      if (savedName) {
+        await netClient.connect(savedName);
+      }
     };
 
     initEngine();
@@ -89,6 +99,13 @@ export const App: React.FC = () => {
       }
     };
   }, [worldGen, netClient]);
+
+  const handleNameSubmit = async (chosenName: string) => {
+    sessionStorage.setItem("webwestmarch_player_name", chosenName);
+    setPlayerName(chosenName);
+    setIsNamePromptOpen(false);
+    await netClient.connect(chosenName);
+  };
 
   const handleSendMessage = (text: string, channel: "GLOBAL" | "PARTY") => {
     netClient.sendChat(text, channel);
@@ -111,11 +128,19 @@ export const App: React.FC = () => {
       <GameHUD
         status={status}
         localPlayer={localPlayer}
+        players={players}
+        localSessionId={netClient.localSessionId}
         selectedCoord={selectedCoord}
         selectedTile={selectedTile}
         chatMessages={chatMessages}
         onSendMessage={handleSendMessage}
         onCenterPlayer={handleCenterPlayer}
+      />
+
+      {/* Name Prompt Modal on Entry */}
+      <NamePromptModal
+        isOpen={isNamePromptOpen}
+        onSubmit={handleNameSubmit}
       />
     </main>
   );

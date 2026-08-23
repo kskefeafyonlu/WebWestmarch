@@ -6,6 +6,7 @@ import { TileInspectorWidget } from "./TileInspectorWidget";
 import { ChatWidget } from "./ChatWidget";
 import { EncampmentModal } from "./EncampmentModal";
 import { CombatPreviewModal } from "./CombatPreviewModal";
+import { PlayerListWidget } from "./PlayerListWidget";
 import {
   Compass,
   Map as MapIcon,
@@ -21,6 +22,8 @@ import {
 interface GameHUDProps {
   status: ConnectionStatus;
   localPlayer?: RemotePlayer;
+  players: Map<string, RemotePlayer>;
+  localSessionId: string | null;
   selectedCoord: HexCoord | null;
   selectedTile: TileData | null;
   chatMessages: ChatMsg[];
@@ -31,6 +34,8 @@ interface GameHUDProps {
 export const GameHUD: React.FC<GameHUDProps> = ({
   status,
   localPlayer,
+  players,
+  localSessionId,
   selectedCoord,
   selectedTile,
   chatMessages,
@@ -43,40 +48,45 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   return (
     <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between p-4">
-      {/* Top Header Bar */}
-      <div className="flex items-center justify-between pointer-events-auto">
-        {/* Title & Server Status */}
-        <div className="glass-panel px-4 py-2 flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-400" />
-            <h1 className="font-cinzel text-base font-bold gold-glow-text">
-              WebWestmarch
-            </h1>
+      {/* Top Section */}
+      <div className="flex items-start justify-between pointer-events-auto gap-4">
+        {/* Top-Left: Realm Title, Status, and Connected Players List */}
+        <div className="flex flex-col gap-2">
+          <div className="glass-panel px-4 py-2 flex items-center gap-3 w-fit">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-400" />
+              <h1 className="font-cinzel text-base font-bold gold-glow-text">
+                WebWestmarch
+              </h1>
+            </div>
+            <div className="h-4 w-px bg-slate-700" />
+            <div className="flex items-center gap-1.5 text-xs font-mono">
+              {status === "CONNECTED" ? (
+                <span className="flex items-center gap-1.5 text-emerald-400">
+                  <span className="pulse-indicator" /> Realm Live
+                </span>
+              ) : status === "CONNECTING" ? (
+                <span className="text-amber-400 animate-pulse">Connecting...</span>
+              ) : (
+                <span className="flex items-center gap-1 text-rose-400">
+                  <WifiOff className="w-3.5 h-3.5" /> Standalone / Disconnected
+                </span>
+              )}
+            </div>
           </div>
-          <div className="h-4 w-px bg-slate-700" />
-          <div className="flex items-center gap-1.5 text-xs font-mono">
-            {status === "CONNECTED" ? (
-              <span className="flex items-center gap-1.5 text-emerald-400">
-                <span className="pulse-indicator" /> Realm Live
-              </span>
-            ) : status === "CONNECTING" ? (
-              <span className="text-amber-400 animate-pulse">Connecting...</span>
-            ) : (
-              <span className="flex items-center gap-1 text-rose-400">
-                <WifiOff className="w-3.5 h-3.5" /> Standalone / Disconnected
-              </span>
-            )}
-          </div>
+
+          {/* Connected Adventurers List */}
+          <PlayerListWidget players={players} localSessionId={localSessionId} />
         </div>
 
-        {/* Mode Switcher & Quick Navigation */}
+        {/* Top-Right: Mode Switcher & Quick Navigation */}
         <div className="glass-panel p-1.5 flex items-center gap-1.5">
           <button
             onClick={onCenterPlayer}
             className="fantasy-btn py-1.5 px-3 text-xs"
-            title="Center Camera on Party (Spacebar)"
+            title="Center Camera (Spacebar)"
           >
-            <Navigation className="w-3.5 h-3.5 text-amber-400" /> Focus Party
+            <Navigation className="w-3.5 h-3.5 text-amber-400" /> Focus Sanctuary
           </button>
           <button
             onClick={() => setIsEncampmentOpen(true)}
@@ -97,7 +107,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       {showControlsHint && (
         <div className="self-center glass-panel px-4 py-1.5 flex items-center gap-4 text-xs text-slate-300 pointer-events-auto border-amber-500/20">
           <span>
-            🗺️ <strong>Explore</strong>: Click adjacent hex or use <strong>Q / W / E / A / S / D</strong> keys. Drag mouse to pan. Scroll to zoom.
+            🗺️ <strong>Inspect Map</strong>: Click any hex to examine terrain, biomes, and landmarks. Drag mouse to pan. Scroll to zoom.
           </span>
           <button
             onClick={() => setShowControlsHint(false)}
