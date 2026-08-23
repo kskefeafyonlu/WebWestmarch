@@ -299,7 +299,7 @@ export const App: React.FC = () => {
           {/* Left Column: Your Profile & Party Status */}
           <div className="lobby-col">
             <div className="glass-panel" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", pb: 12, paddingBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div
                     style={{
