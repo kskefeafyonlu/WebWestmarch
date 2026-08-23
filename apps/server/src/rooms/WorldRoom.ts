@@ -158,9 +158,79 @@ export class WorldRoom extends Room<WorldRoomState> {
         deltaState.dangerTier = delta.landmark.dangerTier;
       }
       this.state.deltas.set(delta.coordKey, deltaState);
-
       this.broadcast("delta_updated", { delta });
     });
+
+    // Manual player list request handler
+    this.onMessage("get_players", (client) => {
+      this.sendPlayerList(client);
+    });
+  }
+
+  private sendPlayerList(client: Client): void {
+    const list: any[] = [];
+    this.state.players.forEach((p, id) => {
+      const members: any[] = [];
+      p.members.forEach((m) => {
+        members.push({
+          id: m.id,
+          name: m.name,
+          classRole: m.classRole,
+          level: m.level,
+          currentHp: m.currentHp,
+          maxHp: m.maxHp,
+          currentMp: m.currentMp,
+          maxMp: m.maxMp,
+        });
+      });
+
+      list.push({
+        id,
+        name: p.name,
+        color: p.color,
+        q: p.q,
+        r: p.r,
+        targetQ: p.targetQ,
+        targetR: p.targetR,
+        isMoving: p.isMoving,
+        members,
+      });
+    });
+
+    client.send("player_list_update", { players: list });
+  }
+
+  private broadcastPlayerList(): void {
+    const list: any[] = [];
+    this.state.players.forEach((p, id) => {
+      const members: any[] = [];
+      p.members.forEach((m) => {
+        members.push({
+          id: m.id,
+          name: m.name,
+          classRole: m.classRole,
+          level: m.level,
+          currentHp: m.currentHp,
+          maxHp: m.maxHp,
+          currentMp: m.currentMp,
+          maxMp: m.maxMp,
+        });
+      });
+
+      list.push({
+        id,
+        name: p.name,
+        color: p.color,
+        q: p.q,
+        r: p.r,
+        targetQ: p.targetQ,
+        targetR: p.targetR,
+        isMoving: p.isMoving,
+        members,
+      });
+    });
+
+    this.broadcast("player_list_update", { players: list });
   }
 
   public onJoin(client: Client, options: { playerName?: string }): void {
@@ -222,6 +292,9 @@ export class WorldRoom extends Room<WorldRoomState> {
       timestamp: welcomeMsg.timestamp,
     });
 
+    // Broadcast updated player list to all clients
+    this.broadcastPlayerList();
+
     console.log(`[WorldRoom] Client joined: ${client.sessionId} as ${name}`);
   }
 
@@ -236,9 +309,19 @@ export class WorldRoom extends Room<WorldRoomState> {
       leaveMsg.content = `${player.name} returned to the shadows.`;
       leaveMsg.timestamp = Date.now();
       this.state.chatHistory.push(leaveMsg);
+
+      this.broadcast("chat_message", {
+        id: leaveMsg.id,
+        senderId: leaveMsg.senderId,
+        senderName: leaveMsg.senderName,
+        channel: leaveMsg.channel,
+        content: leaveMsg.content,
+        timestamp: leaveMsg.timestamp,
+      });
     }
 
     this.state.players.delete(client.sessionId);
+    this.broadcastPlayerList();
     console.log(`[WorldRoom] Client left: ${client.sessionId}`);
   }
 

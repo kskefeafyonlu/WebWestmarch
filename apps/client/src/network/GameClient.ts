@@ -77,27 +77,21 @@ export class GameNetworkClient {
       this.setStatus("CONNECTED");
       console.log(`[GameClient] Joined room: ${this.room.id} as session: ${this.localSessionId}`);
 
-      // 1. Initial State Sync & Continuous State Change Listener
-      this.room.onStateChange((state: any) => {
-        if (state && state.players) {
-          // Clear stale players
-          const currentIds = new Set<string>();
-          state.players.forEach((player: any, key: string) => {
-            currentIds.add(key);
-            this.updatePlayerFromSchema(key, player);
-          });
-
-          for (const existingId of this.players.keys()) {
-            if (!currentIds.has(existingId)) {
-              this.players.delete(existingId);
-            }
+      // 1. Dedicated player list message broadcast listener
+      this.room.onMessage("player_list_update", (data: { players: RemotePlayer[] }) => {
+        this.players.clear();
+        if (data && Array.isArray(data.players)) {
+          for (const p of data.players) {
+            this.players.set(p.id, p);
           }
-
-          this.notifyPlayersUpdate();
         }
+        this.notifyPlayersUpdate();
       });
 
-      // 2. Immediate direct message listener for fast broadcast delivery
+      // 2. Request current player list immediately upon connection
+      this.room.send("get_players");
+
+      // 3. Immediate direct message listener for fast broadcast delivery
       this.room.onMessage("chat_message", (msg: ChatMsg) => {
         this.onChatReceived?.(msg);
       });
