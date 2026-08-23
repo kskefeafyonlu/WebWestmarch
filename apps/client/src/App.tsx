@@ -160,15 +160,18 @@ export const App: React.FC = () => {
     setHasJoinedLobby(false);
   };
 
+  // Character Name state
+  const [characterName, setCharacterName] = useState("");
+
   // Handle Joining Lobby (Authenticated Discord user or Admin Bypass)
   const handleJoinLobby = async (e: React.FormEvent) => {
     e.preventDefault();
     let finalName = "";
 
     if (authProfile) {
-      finalName = authProfile.username;
+      finalName = characterName.trim() || authProfile.username;
     } else if (isAdminMode) {
-      finalName = adminBypassName.trim() || `GM Adventurer #${Math.floor(100 + Math.random() * 900)}`;
+      finalName = adminBypassName.trim() || characterName.trim() || `GM Adventurer #${Math.floor(100 + Math.random() * 900)}`;
     } else {
       setAuthError("Please login with Discord or activate Admin Bypass to enter.");
       return;
@@ -335,6 +338,26 @@ export const App: React.FC = () => {
                   >
                     Switch Account
                   </button>
+                </div>
+
+                {/* Character Name Input */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-main)", display: "flex", alignItems: "center", gap: 6 }}>
+                    <Shield style={{ width: 14, height: 14, color: "var(--accent-gold)" }} /> Character / Adventurer Name
+                  </label>
+                  <input
+                    type="text"
+                    autoFocus
+                    maxLength={24}
+                    value={characterName}
+                    onChange={(e) => setCharacterName(e.target.value)}
+                    placeholder={`e.g. ${authProfile.username} the Valiant`}
+                    className="fantasy-input"
+                    style={{ padding: 12, fontSize: 14 }}
+                  />
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    Your in-game identity in Haven (Discord tag @{authProfile.username} will be displayed on your profile).
+                  </span>
                 </div>
 
                 {/* Class Role Picker */}
